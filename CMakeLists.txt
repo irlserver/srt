@@ -73,7 +73,12 @@ if (NOT MICROSOFT)
 	# that ENABLE_DEBUG is set as it should.
 	if (ENABLE_DEBUG EQUAL 2)
 		set (CMAKE_BUILD_TYPE "RelWithDebInfo")
-		add_definitions(-DNDEBUG)
+		if (ENABLE_ASSERT)
+			# Add _DEBUG macro if explicitly requested, to enable SRT_ASSERT().
+			add_definitions(-D_DEBUG)
+		else()
+			add_definitions(-DNDEBUG)
+		endif()
 	elseif (ENABLE_DEBUG) # 1, ON, YES, TRUE, Y, or any other non-zero number
 		set (CMAKE_BUILD_TYPE "Debug")
 
@@ -360,11 +365,11 @@ if (ENABLE_ENCRYPTION)
 			set (SSL_INCLUDE_DIRS ${MBEDTLS_INCLUDE_DIR})
 			set (SSL_LIBRARIES  ${MBEDTLS_LIBRARIES})
 		endif()
+		if (WIN32)
+			set (SSL_LIBRARIES ${SSL_LIBRARIES} bcrypt)
+		endif()
 		if ("${SSL_LIBRARIES}" STREQUAL "")
 			set (SSL_LIBRARIES  mbedtls mbedcrypto)
-			if (WIN32)
-				set (SSL_LIBRARIES ${SSL_LIBRARIES} bcrypt)
-			endif()
 		endif()
 		message(STATUS "SSL enforced mbedtls: -I ${SSL_INCLUDE_DIRS} -l;${SSL_LIBRARIES}")
 
@@ -1522,15 +1527,11 @@ if (ENABLE_UNITTESTS AND ENABLE_CXX11)
 		)
 		#set_tests_properties(test-srt PROPERTIES RUN_SERIAL TRUE)
 	else()
-		gtest_add_tests(
-			TEST_LIST tests_srt
-			TARGET test-srt
-		)
 		set_tests_properties(${tests_srt} PROPERTIES RUN_SERIAL TRUE)
+		gtest_discover_tests(test-srt)
 	endif()
 
 	enable_testing()
-
 endif()
 
 
