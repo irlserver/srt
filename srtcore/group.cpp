@@ -447,11 +447,13 @@ static bool operator!=(const struct linger& l1, const struct linger& l2)
 template <class ValueType>
 static void importOption(vector<CUDTGroup::ConfigItem>& storage, SRT_SOCKOPT optname, const ValueType& field)
 {
-    ValueType default_opt      = ValueType();
-    int       default_opt_size = sizeof(ValueType);
-    ValueType opt              = field;
-    if (!getOptDefault(optname, (&default_opt), (default_opt_size)) || default_opt != opt)
+    ValueType default_opt             = ValueType();
+    static const int default_opt_size = sizeof(ValueType);
+    ValueType opt                     = field;
+    int opt_size                      = default_opt_size;
+    if (!getOptDefault(optname, (&default_opt), (opt_size)) || default_opt != opt)
     {
+        SRT_ASSERT(opt_size == default_opt_size);
         // Store the option when:
         // - no default for this option is found
         // - the option value retrieved from the field is different than default
@@ -515,7 +517,11 @@ void CUDTGroup::deriveSettings(CUDT* u)
     IM(SRTO_UDP_RCVBUF, iUDPRcvBufSize);
     // SRTO_RENDEZVOUS: impossible to have it set on a listener socket.
     // SRTO_SNDTIMEO/RCVTIMEO: groupwise setting
-    IM(SRTO_CONNTIMEO, tdConnTimeOut);
+
+    // SRTO_CONNTIMEO requires a special handling, because API stores the value in integer milliseconds,
+    // but the type of the variable is srt::sync::duration.
+    importOption(m_config, SRTO_CONNTIMEO, (int) count_milliseconds(u->m_config.tdConnTimeOut));
+
     IM(SRTO_DRIFTTRACER, bDriftTracer);
     // Reuseaddr: true by default and should only be true.
     IM(SRTO_MAXBW, llMaxBW);
@@ -528,7 +534,9 @@ void CUDTGroup::deriveSettings(CUDT* u)
     IM(SRTO_RCVLATENCY, iRcvLatency);
     IM(SRTO_PEERLATENCY, iPeerLatency);
     IM(SRTO_SNDDROPDELAY, iSndDropDelay);
-    IM(SRTO_PAYLOADSIZE, zExpPayloadSize);
+    // Special handling of SRTO_PAYLOADSIZE becuase API stores the value as int32_t,
+    // while the config structure stores it as size_t.
+    importOption(m_config, SRTO_PAYLOADSIZE, (int)u->m_config.zExpPayloadSize);
     IMF(SRTO_TLPKTDROP, m_bTLPktDrop);
 
     importOption(m_config, SRTO_STREAMID, u->m_config.sStreamName.str());
@@ -542,7 +550,7 @@ void CUDTGroup::deriveSettings(CUDT* u)
 
     importOption(m_config, SRTO_PACKETFILTER, u->m_config.sPacketFilterConfig.str());
 
-    importOption(m_config, SRTO_PBKEYLEN, u->m_pCryptoControl->KeyLen());
+    importOption(m_config, SRTO_PBKEYLEN, (int) u->m_pCryptoControl->KeyLen());
 
     // Passphrase is empty by default. Decipher the passphrase and
     // store as passphrase option
@@ -822,7 +830,7 @@ void CUDTGroup::getOpt(SRT_SOCKOPT optname, void* pw_optval, int& w_optlen)
     if (w_optlen < int(i->value.size()))
         throw CUDTException(MJ_NOTSUP, MN_XSIZE, 0);
 
-    w_optlen = i->value.size();
+    w_optlen = (int) i->value.size();
     memcpy((pw_optval), &i->value[0], i->value.size());
 }
 
