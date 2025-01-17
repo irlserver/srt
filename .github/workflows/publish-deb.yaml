@@ -22,7 +22,7 @@ jobs:
         with:
           tag_prefix: ""
           version_format: ${{ github.event_name == 'release' && '${major}.${minor}.${patch}' || '${major}.${minor}.${patch}-prerelease${increment}' }}
-      - uses: jiro4989/build-deb-action@v3
+      - uses: jiro4989/build-deb-action@v4
         id: deb
         with:
           package: irl-libsrt
