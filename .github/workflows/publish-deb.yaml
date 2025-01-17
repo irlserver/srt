@@ -23,7 +23,7 @@ jobs:
           tag_prefix: ""
           version_format: ${{ github.event_name == 'release' && '${major}.${minor}.${patch}' || '${major}.${minor}.${patch}-prerelease${increment}' }}
       - uses: jiro4989/build-deb-action@v3
-        id: build
+        id: deb
         with:
           package: irl-libsrt
           package_root: ./build
@@ -34,4 +34,4 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: libsrt-arm64.deb
-          path: ${{ steps.build.outputs.file_name }}
+          path: ${{ steps.deb.outputs.file_name }}
