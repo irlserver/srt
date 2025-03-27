@@ -921,7 +921,6 @@ struct CSrtConfigSetter<SRTO_SRTLAPATCHES>
     }
 };
 
-#ifdef ENABLE_AEAD_API_PREVIEW
 #if defined(ENABLE_AEAD_API_PREVIEW) && defined(SRT_ENABLE_ENCRYPTION)
 template<>
 struct CSrtConfigSetter<SRTO_CRYPTOMODE>
