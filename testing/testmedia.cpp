@@ -29,7 +29,6 @@
 #include "netinet_any.h"
 #include "common.h"
 #include "api.h"
-#include "udt.h"
 #include "logging.h"
 #include "utilities.h"
 
@@ -81,9 +80,11 @@ struct CloseReasonMap
         at[SRT_CLS_UNSTABLE] = "Requested to be broken as unstable in Backup group";
     }
 
-    string operator[](SRT_CLOSE_REASON reason)
+    string operator[](SRT_CLOSE_REASON rval)
     {
-        if (int(reason) >= SRT_CLSC_USER)
+        int reason = int(rval);
+
+        if (reason >= SRT_CLSC_USER)
         {
             string extra;
             if (reason == SRT_CLSC_USER)
@@ -95,7 +96,7 @@ struct CloseReasonMap
             return Sprint("User-defined reason #", reason - SRT_CLSC_USER, extra);
         }
 
-        auto p = at.find(reason);
+        auto p = at.find(rval);
         if (p == at.end())
             return "UNDEFINED";
         return p->second;
@@ -1909,7 +1910,7 @@ SRTSTATUS SrtTarget::ConfigurePre(SRTSOCKET sock)
     if (result == SRT_ERROR)
         return result;
 
-    if (int(sock) & SRTGROUP_MASK)
+    if (SRT_IS_GROUP(sock))
         return SRT_STATUS_OK;
 
     int yes = 1;
@@ -2101,7 +2102,7 @@ void SrtModel::Establish(std::string& w_name)
         Verb() << "Accepting a client...";
         AcceptNewClient();
         // This rewrites m_sock with a new SRT socket ("accepted" socket)
-        w_name = UDT::getstreamid(m_sock);
+        w_name = srt::getstreamid(m_sock);
         Verb() << "... GOT CLIENT for stream [" << w_name << "]";
     }
 }
