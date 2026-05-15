@@ -1144,27 +1144,34 @@ int srt::CUDTUnited::listen(const SRTSOCKET u, int backlog)
     // it could have changed the state. It could be also set listen in another
     // thread, so check it out.
 
-    // do nothing if the socket is already listening
-    if (s->m_Status == SRTS_LISTENING)
-        return 0;
-
-    // a socket can listen only if is in OPENED status
-    if (s->m_Status != SRTS_OPENED)
-        throw CUDTException(MJ_NOTSUP, MN_ISUNBOUND, 0);
-
-    // [[using assert(s->m_Status == OPENED)]];
-
-    // listen is not supported in rendezvous connection setup
     if (s->core().m_config.bRendezvous)
         throw CUDTException(MJ_NOTSUP, MN_ISRENDEZVOUS, 0);
 
-    s->m_uiBackLog = backlog;
+    switch(s->m_Status)
+    {
+        case SRTS_INIT:
+            throw CUDTException(MJ_NOTSUP, MN_ISUNBOUND, 0);
+            break;
+        case SRTS_OPENED:
+            s->m_uiBackLog = backlog;
+            s->core().setListenState(); // propagates CUDTException,
+            s->m_Status = SRTS_LISTENING;
+            break;
+        case SRTS_LISTENING:
+            s->m_uiBackLog = backlog;
+            break;
+        case SRTS_CONNECTING:
+        case SRTS_CONNECTED:
+            throw CUDTException(MJ_NOTSUP, MN_ISCONNECTED, 0);
+            break;
+        case SRTS_BROKEN:
+        case SRTS_CLOSING:
+        case SRTS_CLOSED:
+        case SRTS_NONEXIST:
+            throw CUDTException(MJ_SETUP, MN_CLOSED, 0);
+            break;
+    }
 
-    // [[using assert(s->m_Status == OPENED)]]; // (still, unchanged)
-
-    s->core().setListenState(); // propagates CUDTException,
-                                // if thrown, remains in OPENED state if so.
-    s->m_Status = SRTS_LISTENING;
 
     return 0;
 }
