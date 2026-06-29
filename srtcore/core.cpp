@@ -12020,8 +12020,72 @@ int srt::CUDT::checkNAKTimer(const steady_clock::time_point& currtime)
         if (currtime <= m_tsNextNAKTime.load())
             return BECAUSE_NO_REASON; // wait for next NAK time
 
-        sendCtrl(UMSG_LOSSREPORT);
-        debug_decision = BECAUSE_NAKREPORT;
+        if (m_config.srtlaPatches)
+        {
+            vector<int32_t> lossdata;
+            {
+                ScopedLock lk(m_RcvLossLock);
+                const int cap = m_iMaxSRTPayloadSize / 4;
+                int32_t* arr = new int32_t[cap];
+                int arrlen = 0;
+                m_pRcvLossList->getLossArray(arr, arrlen, cap);
+                const steady_clock::duration max_age = milliseconds_from(250);
+                for (int n = 0; n < arrlen; )
+                {
+                    int32_t lo, hi;
+                    if (arr[n] & LOSSDATA_SEQNO_RANGE_FIRST)
+                    {
+                        lo = arr[n] & ~LOSSDATA_SEQNO_RANGE_FIRST;
+                        hi = arr[n + 1];
+                        n += 2;
+                    }
+                    else
+                    {
+                        lo = hi = arr[n];
+                        n += 1;
+                    }
+                    int32_t runStart = SRT_SEQNO_NONE;
+                    for (int32_t s = lo; ; s = CSeqNo::incseq(s))
+                    {
+                        bool fresh = false;
+                        for (size_t k = 0; k < m_FreshLoss.size(); ++k)
+                        {
+                            if (CSeqNo::seqcmp(s, m_FreshLoss[k].seq[0]) >= 0 && CSeqNo::seqcmp(s, m_FreshLoss[k].seq[1]) <= 0)
+                            {
+                                if (currtime - m_FreshLoss[k].timestamp < max_age)
+                                    fresh = true;
+                                break;
+                            }
+                        }
+                        if (!fresh)
+                        {
+                            if (runStart == SRT_SEQNO_NONE)
+                                runStart = s;
+                        }
+                        else if (runStart != SRT_SEQNO_NONE)
+                        {
+                            addLossRecord(lossdata, runStart, CSeqNo::decseq(s));
+                            runStart = SRT_SEQNO_NONE;
+                        }
+                        if (s == hi)
+                            break;
+                    }
+                    if (runStart != SRT_SEQNO_NONE)
+                        addLossRecord(lossdata, runStart, hi);
+                }
+                delete[] arr;
+            }
+            if (!lossdata.empty())
+            {
+                sendCtrl(UMSG_LOSSREPORT, NULL, &lossdata[0], (int)lossdata.size());
+                debug_decision = BECAUSE_NAKREPORT;
+            }
+        }
+        else
+        {
+            sendCtrl(UMSG_LOSSREPORT);
+            debug_decision = BECAUSE_NAKREPORT;
+        }
     }
 
     m_tsNextNAKTime.store(currtime + m_tdNAKInterval);
