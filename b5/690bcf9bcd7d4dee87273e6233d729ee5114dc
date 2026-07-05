@@ -1,0 +1,19 @@
+srtcore/core.cpp
+  s_f320b3924269f1::t_9a4d4ef91dd7f9 12025-12042,12046-12047,12049,12051-12062,12077-12081,12083-12094,12097-12098,12101,12104
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "b5690bcf9bcd7d4dee87273e6233d729ee5114dc",
+  "prompts": {},
+  "sessions": {
+    "s_f320b3924269f1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "da5e6e86-5ae8-4ac6-ba04-86f53ac999dd",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "datagutt <datagutt@lekanger.no>"
+    }
+  }
+}
