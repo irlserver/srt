@@ -12022,14 +12022,44 @@ int srt::CUDT::checkNAKTimer(const steady_clock::time_point& currtime)
 
         if (m_config.srtlaPatches)
         {
+            // Periodic (timer-driven) re-NAK for the SRTLA bonded path.
+            //
+            // srtla forwards packets to us in link-arrival order without
+            // resequencing, so a gap in the sequence stream may just be a
+            // packet still in flight on a slower bonded link, not a real
+            // loss. SRT already models exactly this: a detected gap sits in
+            // m_FreshLoss (TTL = LOSSMAXTTL packets) until it is either
+            // filled by a late arrival (reorder) or ages out and is
+            // confirmed lost. The periodic NAK must therefore re-report only
+            // the *confirmed* losses: the loss list MINUS everything still
+            // in m_FreshLoss. Gating on m_FreshLoss membership (rather than a
+            // separate wall-clock) keeps the periodic and immediate NAK paths
+            // using the one same definition of "still reorderable".
+            //
+            // We carve the fresh ranges out of the loss list at range
+            // granularity. m_FreshLoss is bounded by the reorder window, so
+            // this never degrades into a per-sequence walk over a large
+            // post-outage loss span while holding m_RcvLossLock.
             vector<int32_t> lossdata;
             {
                 ScopedLock lk(m_RcvLossLock);
+
+                // Confirmed-loss ranges (encoded loss array).
                 const int cap = m_iMaxSRTPayloadSize / 4;
-                int32_t* arr = new int32_t[cap];
+                vector<int32_t> arr(cap);
                 int arrlen = 0;
-                m_pRcvLossList->getLossArray(arr, arrlen, cap);
-                const steady_clock::duration max_age = milliseconds_from(250);
+                m_pRcvLossList->getLossArray(arr.data(), arrlen, cap);
+
+                // Still-reorderable ranges, sorted ascending by seqno.
+                vector<pair<int32_t, int32_t> > fresh;
+                fresh.reserve(m_FreshLoss.size());
+                for (size_t k = 0; k < m_FreshLoss.size(); ++k)
+                    fresh.push_back(make_pair(m_FreshLoss[k].seq[0], m_FreshLoss[k].seq[1]));
+                sort(fresh.begin(), fresh.end(),
+                     [](const pair<int32_t, int32_t>& a, const pair<int32_t, int32_t>& b) {
+                         return CSeqNo::seqcmp(a.first, b.first) < 0;
+                     });
+
                 for (int n = 0; n < arrlen; )
                 {
                     int32_t lo, hi;
@@ -12044,42 +12074,34 @@ int srt::CUDT::checkNAKTimer(const steady_clock::time_point& currtime)
                         lo = hi = arr[n];
                         n += 1;
                     }
-                    int32_t runStart = SRT_SEQNO_NONE;
-                    for (int32_t s = lo; ; s = CSeqNo::incseq(s))
+
+                    // Emit [lo, hi] minus any overlapping fresh ranges,
+                    // walking the (small) sorted fresh list per loss range.
+                    int32_t cur = lo;
+                    for (size_t f = 0; f < fresh.size(); ++f)
                     {
-                        bool fresh = false;
-                        for (size_t k = 0; k < m_FreshLoss.size(); ++k)
-                        {
-                            if (CSeqNo::seqcmp(s, m_FreshLoss[k].seq[0]) >= 0 && CSeqNo::seqcmp(s, m_FreshLoss[k].seq[1]) <= 0)
-                            {
-                                if (currtime - m_FreshLoss[k].timestamp < max_age)
-                                    fresh = true;
-                                break;
-                            }
-                        }
-                        if (!fresh)
-                        {
-                            if (runStart == SRT_SEQNO_NONE)
-                                runStart = s;
-                        }
-                        else if (runStart != SRT_SEQNO_NONE)
-                        {
-                            addLossRecord(lossdata, runStart, CSeqNo::decseq(s));
-                            runStart = SRT_SEQNO_NONE;
-                        }
-                        if (s == hi)
+                        const int32_t f_lo = fresh[f].first;
+                        const int32_t f_hi = fresh[f].second;
+                        if (CSeqNo::seqcmp(f_hi, cur) < 0)
+                            continue; // fresh range entirely below the cursor
+                        if (CSeqNo::seqcmp(f_lo, hi) > 0)
+                            break; // remaining fresh ranges are past this loss range
+                        if (CSeqNo::seqcmp(f_lo, cur) > 0)
+                            addLossRecord(lossdata, cur, CSeqNo::decseq(f_lo));
+                        const int32_t next = CSeqNo::incseq(f_hi);
+                        if (CSeqNo::seqcmp(next, cur) > 0)
+                            cur = next;
+                        if (CSeqNo::seqcmp(cur, hi) > 0)
                             break;
                     }
-                    if (runStart != SRT_SEQNO_NONE)
-                        addLossRecord(lossdata, runStart, hi);
+                    if (CSeqNo::seqcmp(cur, hi) <= 0)
+                        addLossRecord(lossdata, cur, hi);
                 }
-                delete[] arr;
             }
+
             if (!lossdata.empty())
-            {
                 sendCtrl(UMSG_LOSSREPORT, NULL, &lossdata[0], (int)lossdata.size());
-                debug_decision = BECAUSE_NAKREPORT;
-            }
+            debug_decision = BECAUSE_NAKREPORT;
         }
         else
         {
