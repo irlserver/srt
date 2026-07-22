@@ -23,6 +23,7 @@ packetfilter.cpp
 queue.cpp
 congctl.cpp
 socketconfig.cpp
+srtla_hold.cpp
 srt_c_api.cpp
 srt_compat.c
 strerror_defs.cpp
@@ -74,6 +75,7 @@ sync.h
 queue.h
 congctl.h
 socketconfig.h
+srtla_hold.h
 srt_compat.h
 stats.h
 threadname.h

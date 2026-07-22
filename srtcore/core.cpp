@@ -396,6 +396,7 @@ void srt::CUDT::construct()
     m_pSndLossList         = NULL;
     m_pRcvLossList         = NULL;
     m_iReorderTolerance    = 0;
+    m_SrtlaHold.reset();
     // How many times so far the packet considered lost has been received
     // before TTL expires.
     m_iConsecEarlyDelivery   = 0; 
@@ -10899,6 +10900,12 @@ int srt::CUDT::processData(CUnit* in_unit)
 
     const int pktrexmitflag = m_bPeerRexmitFlag ? (packet.getRexmitFlag() ? 1 : 0) : 2;
     const bool retransmitted = pktrexmitflag == 1;
+
+    // Originals only: a retransmit carries the timestamp of the first send, so
+    // its apparent transit includes the whole detect-and-resend round trip and
+    // would be read as a huge reorder.
+    if (m_config.srtlaPatches && !retransmitted)
+        m_SrtlaHold.onOriginal(uint32_t(packet.timestamp()), steady_clock::now());
 #if ENABLE_HEAVY_LOGGING
     string                   rexmit_reason;
 #endif
@@ -11225,12 +11232,37 @@ int srt::CUDT::processData(CUnit* in_unit)
         {
             deque<CRcvFreshLoss>::iterator i = m_FreshLoss.begin();
 
+            // Under SRTLA the packet-count TTL alone is the wrong unit. It
+            // expires after LOSSMAXTTL *packets*, but the thing it models -- a
+            // packet still in flight on a slower bonded link -- resolves after
+            // a *duration*. The wall-clock width of the TTL window is
+            // LOSSMAXTTL/packet_rate, so it shrinks as bitrate rises and the
+            // protection silently evaporates exactly when the stream is
+            // busiest. Hold a record until both its TTL and the measured
+            // inter-link spread have elapsed. This can only ever delay a
+            // report, never hasten one, and the hold is 0 on a single link, so
+            // non-bonded connections are bit-for-bit unaffected.
+            const uint32_t srtla_hold_us = m_config.srtlaPatches ? m_SrtlaHold.holdUs(m_iTsbPdDelay_ms) : 0;
+            const steady_clock::time_point now_ts =
+                srtla_hold_us ? steady_clock::now() : steady_clock::time_point();
+
             // Phase 1: take while TTL <= 0.
             // There can be more than one record with the same TTL, if it has happened before
             // that there was an 'unlost' (@c dropFromLossLists) sequence that has split one detected loss
             // into two records.
+            // Records are appended in detection order, so their timestamps
+            // ascend: once one is too young to report, everything behind it is
+            // too, and the erase-prefix below stays correct.
             for (; i != m_FreshLoss.end() && i->ttl <= 0; ++i)
             {
+                if (srtla_hold_us
+                        && count_microseconds(now_ts - i->timestamp) < int64_t(srtla_hold_us))
+                {
+                    HLOGC(qrlog.Debug, log << CONID() << "SRTLA: holding loss " << i->seq[0] << "-" << i->seq[1]
+                            << " for another " << ((int64_t(srtla_hold_us) - count_microseconds(now_ts - i->timestamp)) / 1000)
+                            << "ms (reorder hold " << (srtla_hold_us / 1000) << "ms)");
+                    break;
+                }
                 HLOGC(qrlog.Debug, log << "Packet seq " << i->seq[0] << "-" << i->seq[1]
                         << " (" << (CSeqNo::seqoff(i->seq[0], i->seq[1]) + 1) << " packets) considered lost - sending LOSSREPORT");
                 addLossRecord(lossdata, i->seq[0], i->seq[1]);

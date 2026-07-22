@@ -63,6 +63,7 @@ modified by
 #include "buffer_rcv.h"
 #include "window.h"
 #include "packet.h"
+#include "srtla_hold.h"
 #include "channel.h"
 #include "cache.h"
 #include "queue.h"
@@ -1124,6 +1125,8 @@ private: // Receiving related data
     CRcvLossList* m_pRcvLossList;                //< Receiver loss list
     SRT_ATTR_GUARDED_BY(m_RcvLossLock)
     std::deque<CRcvFreshLoss> m_FreshLoss;       //< Lost sequence already added to m_pRcvLossList, but not yet sent UMSG_LOSSREPORT for.
+
+    SrtlaReorderHold m_SrtlaHold;                //< Measured bonded-link reorder hold (see srtla_hold.h)
 
     int m_iReorderTolerance;                     //< Current value of dynamic reorder tolerance
     int m_iConsecEarlyDelivery;                  //< Increases with every OOO packet that came <TTL-2 time, resets with every increased reorder tolerance
