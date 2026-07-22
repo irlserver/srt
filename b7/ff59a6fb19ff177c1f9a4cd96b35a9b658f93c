@@ -1,0 +1,38 @@
+srtcore/srtla_hold.h
+  s_78f54c7feda3e7::t_1d28de9bca715c 1-97
+srtcore/srtla_hold.cpp
+  s_78f54c7feda3e7::t_bbbb4be13de035 1-107
+srtcore/core.cpp
+  s_78f54c7feda3e7::t_1506f808272af5 399
+  s_78f54c7feda3e7::t_fbe85d1c445f89 10908
+  s_78f54c7feda3e7::t_54c34ab0666d38 11235-11244,11246-11248,11253-11255,11258-11265
+  s_78f54c7feda3e7::t_c9a58134f2860a 11245
+  s_78f54c7feda3e7::t_70cf62411534ff 10903-10907
+test/test_srtla_hold.cpp
+  s_78f54c7feda3e7::t_510474de03f800 1-107
+srtcore/core.h
+  s_78f54c7feda3e7::t_d889f3442d6992 1130
+  s_78f54c7feda3e7::t_00b8163d61a130 66
+  s_78f54c7feda3e7::t_43a76cb050a664 1129
+srtcore/filelist.maf
+  s_78f54c7feda3e7::t_c36f2a808ae0ae 26
+  s_78f54c7feda3e7::t_ae0381c919a6ec 78
+test/filelist.maf
+  s_78f54c7feda3e7::t_c888f3ce6cdfcc 25
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "b7ff59a6fb19ff177c1f9a4cd96b35a9b658f93c",
+  "prompts": {},
+  "sessions": {
+    "s_78f54c7feda3e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f2cca159-f555-4ee9-92c6-9b6aa3af53c0",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "datagutt <datagutt@lekanger.no>"
+    }
+  }
+}
