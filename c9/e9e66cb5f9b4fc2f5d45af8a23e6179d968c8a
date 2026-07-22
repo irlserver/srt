@@ -1,0 +1,22 @@
+srtcore/srt.h
+  s_78f54c7feda3e7::t_2e40261b21d109 418-422
+  s_78f54c7feda3e7::t_ffd3f2cb14cf1a 412-415
+srtcore/core.cpp
+  s_78f54c7feda3e7::t_ccb7a0b9e9d1ea 7780-7783
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "c9e9e66cb5f9b4fc2f5d45af8a23e6179d968c8a",
+  "prompts": {},
+  "sessions": {
+    "s_78f54c7feda3e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f2cca159-f555-4ee9-92c6-9b6aa3af53c0",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": null
+    }
+  }
+}
