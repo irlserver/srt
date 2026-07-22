@@ -409,7 +409,16 @@ struct CBytePerfMon
    int64_t  pktRecvUnique;              // number of packets to be received by the application
    uint64_t byteSentUnique;             // number of data bytes, sent by the application
    uint64_t byteRecvUnique;             // number of data bytes to be received by the application
+
+   // New stats under SRTLA patches
+
+   int      msSrtlaReorderHold;         // measured bonded-link reorder hold, ms (0 = not measured / not SRTLA)
 };
+
+// Feature test for the field above. Consumers that must also build against a
+// libsrt without it should guard on this rather than on a version number: the
+// SRTLA patches are carried on a fork whose version tracks upstream.
+#define SRT_HAVE_SRTLA_REORDER_HOLD 1
 
 ////////////////////////////////////////////////////////////////////////////////
 

@@ -7777,6 +7777,10 @@ void srt::CUDT::bstats(CBytePerfMon *perf, bool clear, bool instantaneous)
         perf->usSndDuration        = m_stats.sndDuration;
         perf->pktReorderDistance   = m_stats.traceReorderDistance;
         perf->pktReorderTolerance  = m_iReorderTolerance;
+        // Reported in ms; 0 when not under SRTLA or nothing measured yet.
+        perf->msSrtlaReorderHold   = m_config.srtlaPatches
+            ? int(m_SrtlaHold.holdUs(m_iTsbPdDelay_ms) / 1000)
+            : 0;
         perf->pktRcvAvgBelatedTime = m_stats.traceBelatedTime;
         perf->pktRcvBelated        = m_stats.rcvr.recvdBelated.trace.count();
 
