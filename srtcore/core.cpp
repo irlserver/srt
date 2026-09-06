@@ -12191,10 +12191,8 @@ int srt::CUDT::checkNAKTimer(const steady_clock::time_point& currtime)
                 ScopedLock lk(m_RcvLossLock);
 
                 // Confirmed-loss ranges (encoded loss array).
-                const int cap = m_iMaxSRTPayloadSize / 4;
-                vector<int32_t> arr(cap);
-                int arrlen = 0;
-                m_pRcvLossList->getLossArray(arr.data(), arrlen, cap);
+                FixedArray<int32_t> arr(m_iMaxDataPayloadSize / sizeof(int32_t));
+                const int arrlen = m_pRcvLossList->getLossArray(arr);
 
                 // Still-reorderable ranges, sorted ascending by seqno.
                 vector<pair<int32_t, int32_t> > fresh;
