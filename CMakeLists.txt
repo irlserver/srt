@@ -7,7 +7,11 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #
 
-cmake_minimum_required (VERSION 3.5 FATAL_ERROR)
+if(CMAKE_VERSION VERSION_LESS 3.12)
+    cmake_minimum_required(VERSION 3.5)
+else()
+    cmake_minimum_required(VERSION 3.5...4.5)
+endif()
 set (SRT_VERSION 1.5.7)
 
 set (CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/scripts")
@@ -211,6 +215,10 @@ option(USE_BUSY_WAITING "Enable more accurate sending times at a cost of potenti
 option(USE_GNUSTL "Get c++ library/headers from the gnustl.pc" OFF)
 option(ENABLE_SOCK_CLOEXEC "Enable setting SOCK_CLOEXEC on a socket" ON)
 option(ENABLE_SHOW_PROJECT_CONFIG "Enable show Project Configuration" OFF)
+if (WIN32)
+	option(ENABLE_WSA_INIT "Enable calls of WSAStartup/WSACleanup automatically" ON)
+endif()
+option(ENABLE_RDV_TIMEOUT_FIX "Keep SRTO_CONNTIMEO value for caller-listener same as for rendezvous" OFF)
 
 option(ENABLE_CLANG_TSA "Enable Clang Thread Safety Analysis" OFF)
 
@@ -1006,6 +1014,11 @@ else ()
 	message(STATUS "Pthread library: ${PTHREAD_LIBRARY}")
 endif()
 
+if (WIN32 AND ENABLE_WSA_INIT)
+	list(APPEND SRT_EXTRA_CFLAGS "-DSRT_ENABLE_WSA_INIT")
+	message(STATUS "Windows: WSAStartup/WSACleanup will be called at library initialization/finalization")
+endif()
+
 set(CMAKE_REQUIRED_LIBRARIES "${PTHREAD_LIBRARY};${CMAKE_REQUIRED_LIBRARIES}")
 unset(CMAKE_REQUIRED_QUIET)
 
@@ -1255,6 +1268,13 @@ if (ENABLE_SHARED)
 endif()
 
 target_compile_definitions(srt_virtual PRIVATE -DSRT_LOG_SLOWDOWN_FREQ_MS=${SRT_LOG_SLOWDOWN_FREQ_MS})
+
+if (ENABLE_RDV_TIMEOUT_FIX)
+	target_compile_definitions(srt_virtual PRIVATE -DSRT_ENABLE_RDV_TIMEOUT_FIX=1)
+else()
+	message(WARNING "NOTE: SRTO_CONNTIMEO is taken *10 for rendezvous; add -DENABLE_RDV_TIMEOUT_FIX=1 to fix it")
+endif()
+
 
 if (ENABLE_ENCRYPTION AND "${USE_ENCLIB}" STREQUAL "botan")
 	add_dependencies(srt_virtual botan)

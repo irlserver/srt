@@ -22,6 +22,7 @@ written by
 #include "packet.h"
 #include "core.h"
 #include "utilities.h"
+#include "sync.h"
 
 using namespace std;
 using namespace srt;
@@ -152,7 +153,7 @@ int srt_rendezvous(SRTSOCKET u, const struct sockaddr* local_name, int local_nam
 
 int srt_close(SRTSOCKET u)
 {
-    SRT_SOCKSTATUS st = srt_getsockstate(u);
+    const SRT_SOCKSTATUS st = srt_getsockstate(u);
 
     if ((st == SRTS_NONEXIST) ||
         (st == SRTS_CLOSED)   ||
@@ -162,7 +163,14 @@ int srt_close(SRTSOCKET u)
         return 0;
     }
 
-    return CUDT::close(u);
+    const int  result                    = CUDT::close(u);
+    const bool retired_after_valid_state = (result == SRT_ERROR) && (srt_getlasterror(NULL) == SRT_EINVSOCK);
+    if (retired_after_valid_state)
+    {
+        return 0;
+    }
+
+    return result;
 }
 
 int srt_getpeername(SRTSOCKET u, struct sockaddr * name, int * namelen) { return CUDT::getpeername(u, name, namelen); }
@@ -264,7 +272,7 @@ const char* srt_strerror(int code, int /*err ignored*/)
 
 void srt_clearlasterror()
 {
-    UDT::getlasterror().clear();
+    srt::sync::ClearThreadLocalError();
 }
 
 int srt_bstats(SRTSOCKET u, SRT_TRACEBSTATS * perf, int clear) { return CUDT::bstats(u, perf, 0!=  clear); }
