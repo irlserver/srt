@@ -11705,11 +11705,11 @@ void srt::CUDT::unlose(const CPacket &packet)
 
             // DISABLED FOR BELABOX
             // See: https://github.com/BELABOX/srt/commit/453fae978f54430d64c20683657bf0f2f3da2eb4
-            // Use SRTO_LOSSMAXTTL as the fixed reodering TTL value
+            // Use SRTO_LOSSMAXTTL as the fixed reordering TTL value
             // Normally the TTL is adjusted up and down depending on how far
             // packages arrive out of order. However this causes spurious
             // retransmissions over srtla as out-of-order delivery is to be
-            // expected, but the TTL can ocasionally become 0 / too low as
+            // expected, but the TTL can occasionally become 0 / too low as
             // traffic is dynamically balanced over multiple links
 
             // After 10 consecutive
